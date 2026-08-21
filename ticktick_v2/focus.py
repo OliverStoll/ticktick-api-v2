@@ -139,7 +139,7 @@ class TicktickFocusHandler:
 
         Mirrors the request TickTick's own web app sends from Pomodoro ->
         Focus Record -> "+" (Add Focus Record). The server does not require
-        chunking into the configured pomodoro length — a single record with
+        chunking into the configured pomodoro length: a single record with
         an arbitrary duration is accepted."""
         url = "https://api.ticktick.com/api/v2/batch/pomodoro"
         record_id = uuid.uuid4().hex[:24]
