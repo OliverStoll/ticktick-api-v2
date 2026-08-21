@@ -6,7 +6,16 @@ import requests
 from pydantic import BaseModel, ConfigDict, Field
 
 from ticktick_v2.cookies_login import get_authenticated_ticktick_headers
-from ticktick_v2.utils.logger import create_logger
+
+_URL_EVENTS = "https://api.ticktick.com/api/v2/calendar/bind/events/all"
+
+
+def _headers(headers: dict | None) -> dict:
+    """Every function here takes an optional `headers` so a caller doing many
+    requests can fetch it once with `get_authenticated_ticktick_headers()` and
+    pass it in, instead of re-authenticating per call. If omitted, it's
+    fetched fresh, which is cheap once cookies are cached on disk."""
+    return headers if headers is not None else get_authenticated_ticktick_headers()
 
 
 class TicktickEvent(BaseModel):
@@ -51,53 +60,29 @@ class TicktickEvent(BaseModel):
     )
 
 
+def get_all_events(
+    calendar_names: list[str] | None = None,
+    only_active: bool = False,
+    headers: dict | None = None,
+) -> list[TicktickEvent]:
+    response = requests.get(_URL_EVENTS, headers=_headers(headers))
+    response_data = response.json()
+    all_calendars = response_data.get('events', [])
+    all_events = []
+    for calendar in all_calendars:
+        if calendar_names and calendar['name'] not in calendar_names:
+            continue
 
-
-class TicktickEventHandler:
-    log = create_logger('TickTick Focus Handler')
-
-    def __init__(
-            self,
-            cookies_path: str | None = None,
-            always_raise_exceptions: bool = False,
-            headless: bool = True,
-            undetected: bool = False,
-            download_driver: bool = False,
-            username_env: str = 'TICKTICK_EMAIL',
-            password_env: str = 'TICKTICK_PASSWORD',
-    ):
-        self.headers = get_authenticated_ticktick_headers(
-            cookies_path=cookies_path,
-            username_env=username_env,
-            password_env=password_env,
-            headless=headless,
-            undetected=undetected,
-            download_driver=download_driver,
-        )
-        self.raise_exceptions = always_raise_exceptions
-
-    def get_all_events(self, calendar_names: list[str] | None = None, only_active: bool = False) -> list[TicktickEvent]:
-        url = "https://api.ticktick.com/api/v2/calendar/bind/events/all"
-
-        response = requests.get(url, headers=self.headers)
-        response_data = response.json()
-        all_calendars = response_data.get('events', [])
-        all_events = []
-        for calendar in all_calendars:
-            if calendar_names and calendar['name'] not in calendar_names:
+        for event in calendar.get('events', []):
+            event['calendarId'] = calendar['id']
+            event['calendarName'] = calendar['name']
+            event_obj = TicktickEvent(**event)
+            if only_active and not event_obj.is_active:
                 continue
+            all_events.append(event_obj)
 
-            for event in calendar.get('events', []):
-                event['calendarId'] = calendar['id']
-                event['calendarName'] = calendar['name']
-                event_obj = TicktickEvent(**event)
-                if only_active and not event_obj.is_active:
-                    continue
-                all_events.append(event_obj)
-
-        return all_events
-
+    return all_events
 
 
 if __name__ == '__main__':
-    all_events = TicktickEventHandler().get_all_events(only_active=True)
+    active_events = get_all_events(only_active=True)

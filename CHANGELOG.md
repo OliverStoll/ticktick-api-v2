@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.26.0
+
+- **Breaking**: replaced the `TicktickTaskHandler`/`TicktickHabitHandler`/`TicktickFocusHandler`/`TicktickEventHandler` classes with plain module-level functions (`create_task`, `post_checkin`, `add_focus_record`, `get_all_events`, etc.), each taking an optional `headers` argument instead of requiring a constructed handler object. See the README for the new usage.
+- `habits.py`: habit metadata (previously cached on `self.habits`/`self.habit_ids` at handler construction) is now an explicit `habits_metadata` argument, fetched fresh if omitted.
+- `tasks.py`: `add_project_properties_to_tasks` now takes `projects` explicitly instead of reading handler state.
+
 ## 0.25.0
 
 - **Tasks**: add `create_task`, `update_task`, `complete_task`, `change_task_status`, `get_active_tasks`, `get_abandoned_tasks`, `mark_recurring_complete`, `get_all_projects`

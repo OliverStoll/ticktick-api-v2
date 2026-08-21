@@ -1,7 +1,9 @@
 from datetime import datetime, timezone
 
 from ticktick_v2.tasks import (
+    TickTickProject,
     TickTickTask,
+    add_project_properties_to_tasks,
     current_utc_iso,
     format_datetime_custom,
     generate_id,
@@ -60,3 +62,28 @@ def test_repeat_days_returns_none_for_unknown_frequency_without_crashing():
     # on the pydantic model itself
     odd = TickTickTask(title="t", project_id="p", repeat_flag="RRULE:FREQ=HOURLY;INTERVAL=1")
     assert odd.repeat_days is None
+
+
+def test_add_project_properties_fills_in_inbox():
+    task = TickTickTask(title="t", project_id="inbox123456")
+    add_project_properties_to_tasks([task], projects={})
+    assert task.project_name == "INBOX"
+    assert task.show_in_all is True
+
+
+def test_add_project_properties_fills_in_from_project_map():
+    project = TickTickProject(
+        id="proj1", name="Groceries", is_owner=True, in_all=False, group_id=None, muted=True
+    )
+    task = TickTickTask(title="t", project_id="proj1")
+    add_project_properties_to_tasks([task], projects={"proj1": project})
+    assert task.project_name == "Groceries"
+    assert task.show_in_all is False
+    assert task.project_muted is True
+
+
+def test_add_project_properties_missing_project_logs_but_does_not_raise():
+    task = TickTickTask(title="t", project_id="unknown-project")
+    result = add_project_properties_to_tasks([task], projects={})
+    assert result == [task]
+    assert task.project_name is None

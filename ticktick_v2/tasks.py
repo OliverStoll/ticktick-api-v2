@@ -6,12 +6,16 @@ from zoneinfo import ZoneInfo
 
 import requests
 from pydantic import BaseModel, ConfigDict, Field
-from requests import Response
 
 from ticktick_v2.cookies_login import get_authenticated_ticktick_headers
 from ticktick_v2.utils.logger import create_logger
 
-_model_log = create_logger("TickTick Task Model")
+log = create_logger("TickTick Tasks")
+
+_URL_GET_TASKS = "https://api.ticktick.com/api/v2/batch/check/0"
+_URL_GET_PROJECTS = "https://api.ticktick.com/api/v2/projects"
+_URL_CREATE_TASK = "https://api.ticktick.com/api/v2/batch/task"
+_URL_ABANDONED_TASKS = "https://api.ticktick.com/api/v2/project/all/closed?status=Abandoned"
 
 
 def current_utc_iso() -> str:
@@ -28,6 +32,14 @@ def format_datetime_custom(dt: datetime) -> str:
 
 def generate_id() -> str:
     return secrets.token_hex(12)
+
+
+def _headers(headers: dict | None) -> dict:
+    """Every function here takes an optional `headers` so a caller doing many
+    requests can fetch it once with `get_authenticated_ticktick_headers()` and
+    pass it in, instead of re-authenticating per call. If omitted, it's
+    fetched fresh, which is cheap once cookies are cached on disk."""
+    return headers if headers is not None else get_authenticated_ticktick_headers()
 
 
 class TickTickTask(BaseModel):
@@ -113,10 +125,10 @@ class TickTickTask(BaseModel):
             case "YEARLY":
                 freq_days = 365
             case _:
-                _model_log.warning(f"Unknown frequency: {freq_str}. Returning None.")
+                log.warning(f"Unknown frequency: {freq_str}. Returning None.")
                 return None
         if not value_str.isdigit():
-            _model_log.warning(f"Invalid value in repeat flag: {value_str}. Returning None.")
+            log.warning(f"Invalid value in repeat flag: {value_str}. Returning None.")
             return None
         return freq_days * int(value_str)
 
@@ -189,188 +201,122 @@ class TickTickProject(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, extra="allow")
 
 
-class TicktickTaskHandler:
-    log = create_logger("TickTick Task Handler")
-    url_get_tasks = "https://api.ticktick.com/api/v2/batch/check/0"
-    url_get_projects = "https://api.ticktick.com/api/v2/projects"
-    url_create_task = "https://api.ticktick.com/api/v2/batch/task"
+def create_task(task: TickTickTask, headers: dict | None = None) -> requests.Response:
+    payload = {"add": [task.model_dump(mode="json", by_alias=True, exclude_unset=False)]}
+    return requests.post(_URL_CREATE_TASK, data=json.dumps(payload), headers=_headers(headers))
 
-    def __init__(
-        self,
-        return_pydantic: bool = True,
-        always_raise_exceptions: bool = False,
-        cookies_path: str | None = None,
-        username_env: str = "TICKTICK_EMAIL",
-        password_env: str = "TICKTICK_PASSWORD",
-        headless: bool = True,
-        undetected: bool = False,
-        download_driver: bool = False,
-    ):
-        self.headers = get_authenticated_ticktick_headers(
-            cookies_path=cookies_path,
-            username_env=username_env,
-            password_env=password_env,
-            headless=headless,
-            undetected=undetected,
-            download_driver=download_driver,
-        )
-        self.raise_exceptions = always_raise_exceptions
-        self.return_pydantic = return_pydantic
-        self.projects: dict[str, TickTickProject] | None = None
 
-    def create_task(self, task: TickTickTask) -> Response:
-        payload = {"add": [task.model_dump(mode="json", by_alias=True, exclude_unset=False)]}
-        json_payload = json.dumps(payload)
-        response = requests.post(self.url_create_task, data=json_payload, headers=self.headers)
-        return response
+def complete_task(task_id: str, project_id: str, headers: dict | None = None) -> requests.Response:
+    return change_task_status(task_id, project_id, status=2, headers=headers)
 
-    def complete_task(self, task_id: str, project_id: str):
-        task = {
-            "id": task_id,
-            "projectId": project_id,
-            "status": 2,
-        }
-        payload = {"update": [task]}
-        json_payload = json.dumps(payload)
-        response = requests.post(self.url_create_task, data=json_payload, headers=self.headers)
-        return response
 
-    def change_task_status(self, task_id: str, project_id: str, status: int):
-        task = {
-            "id": task_id,
-            "projectId": project_id,
-            "status": status,
-        }
-        payload = {"update": [task]}
-        json_payload = json.dumps(payload)
-        response = requests.post(self.url_create_task, data=json_payload, headers=self.headers)
-        return response
+def change_task_status(
+    task_id: str, project_id: str, status: int, headers: dict | None = None
+) -> requests.Response:
+    task = {"id": task_id, "projectId": project_id, "status": status}
+    payload = {"update": [task]}
+    return requests.post(_URL_CREATE_TASK, data=json.dumps(payload), headers=_headers(headers))
 
-    def update_task(self, task: TickTickTask):
-        """
-        Update a task in TickTick. The task must have an id and project_id set.
-        """
-        if not task.id or not task.project_id:
-            raise ValueError("Task must have an id and project_id to be updated.")
 
-        task_data = task.model_dump(mode="json", by_alias=True, exclude_unset=False)
-        payload = {"update": [task_data]}
-        json_payload = json.dumps(payload)
-        response = requests.post(self.url_create_task, data=json_payload, headers=self.headers)
-        return response
+def update_task(task: TickTickTask, headers: dict | None = None) -> requests.Response:
+    """Update a task in TickTick. The task must have an id and project_id set."""
+    if not task.id or not task.project_id:
+        raise ValueError("Task must have an id and project_id to be updated.")
 
-    def get_all_tasks(self) -> list[TickTickTask] | None:
-        """
-        Get all TickTick tasks
+    task_data = task.model_dump(mode="json", by_alias=True, exclude_unset=False)
+    payload = {"update": [task_data]}
+    return requests.post(_URL_CREATE_TASK, data=json.dumps(payload), headers=_headers(headers))
 
-        Returns:
-            List of TickTickTask pydantic BaseModel objects, or dicts
-        """
 
-        warnings.warn(
-            "get_all_tasks is deprecated. Use get_active_tasks instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
+def get_all_tasks(
+    headers: dict | None = None, raise_exception: bool = False
+) -> list[TickTickTask] | None:
+    """Deprecated: use `get_active_tasks` instead."""
+    warnings.warn(
+        "get_all_tasks is deprecated. Use get_active_tasks instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return get_active_tasks(headers=headers, raise_exception=raise_exception)
 
-        response = requests.get(url=self.url_get_tasks, headers=self.headers).json()
-        tasks_data = response.get("syncTaskBean", {}).get("update", None)
-        if tasks_data is None:
-            self.log_or_raise_error("Getting Tasks failed")
-            return None
 
-        tasks = [TickTickTask(**task_data) for task_data in tasks_data]
-        tasks = self.add_project_properties_to_tasks(tasks)
-        return tasks
+def get_active_tasks(
+    headers: dict | None = None, raise_exception: bool = False
+) -> list[TickTickTask] | None:
+    """Get all active TickTick tasks."""
+    response = requests.get(url=_URL_GET_TASKS, headers=_headers(headers)).json()
+    tasks_data = response.get("syncTaskBean", {}).get("update", None)
+    if tasks_data is None:
+        _log_or_raise("Getting Tasks failed", raise_exception)
+        return None
+    return [TickTickTask(**task_data) for task_data in tasks_data]
 
-    def get_active_tasks(self) -> list[TickTickTask] | None:
-        """
-        Get all TickTick tasks
 
-        Returns:
-            List of TickTickTask pydantic BaseModel objects, or dicts
-        """
-        response = requests.get(url=self.url_get_tasks, headers=self.headers).json()
-        tasks_data = response.get("syncTaskBean", {}).get("update", None)
-        if tasks_data is None:
-            self.log_or_raise_error("Getting Tasks failed")
-            return None
+def get_abandoned_tasks(
+    headers: dict | None = None, raise_exception: bool = False
+) -> list[TickTickTask] | None:
+    """Get all TickTick tasks with status -1 (wont do)."""
+    tasks_data = requests.get(url=_URL_ABANDONED_TASKS, headers=_headers(headers)).json()
+    if tasks_data is None:
+        _log_or_raise("Getting Wont-Do Tasks failed", raise_exception)
+        return None
+    return [TickTickTask(**task) for task in tasks_data if task["status"] == -1]
 
-        tasks = [TickTickTask(**task_data) for task_data in tasks_data]
-        tasks = self.add_project_properties_to_tasks(tasks)
-        return tasks
 
-    def get_abandoned_tasks(self) -> list[TickTickTask] | None:
-        """
-        Get all TickTick tasks with status -1 (wont do)
+def get_all_projects(
+    headers: dict | None = None, raise_exception: bool = False
+) -> dict[str, TickTickProject] | None:
+    response = requests.get(url=_URL_GET_PROJECTS, headers=_headers(headers)).json()
+    if response is None:
+        _log_or_raise("Getting Projects failed", raise_exception)
+        return None
+    projects = [TickTickProject(**project_data) for project_data in response]
+    return {project.id: project for project in projects}
 
-        Returns:
-            List of TickTickTask pydantic BaseModel objects, or dicts
-        """
-        url = "https://api.ticktick.com/api/v2/project/all/closed?status=Abandoned"
-        tasks_data = requests.get(url=url, headers=self.headers).json()
-        if tasks_data is None:
-            self.log_or_raise_error("Getting Wont-Do Tasks failed")
-            return None
 
-        wont_do_tasks = [TickTickTask(**task) for task in tasks_data if task["status"] == -1]
-        return wont_do_tasks
+def add_project_properties_to_tasks(
+    tasks: list[TickTickTask], projects: dict[str, TickTickProject]
+) -> list[TickTickTask]:
+    """Fill in `project_name`/`show_in_all`/`project_muted` on each task from
+    a `projects` map, as returned by `get_all_projects()`."""
+    for task in tasks:
+        try:
+            if "inbox" in task.project_id:
+                task.project_name = "INBOX"
+                task.show_in_all = True
+                task.project_muted = False
+            else:
+                project = projects[task.project_id]
+                task.project_name = project.name
+                task.show_in_all = project.in_all
+                task.project_muted = project.muted
+        except Exception as e:
+            log.warning(f"Project of task {task.title} not found: {e!s}")
+    return tasks
 
-    def get_all_projects(self) -> dict[str, TickTickProject] | None:
-        response = requests.get(url=self.url_get_projects, headers=self.headers).json()
-        if response is None:
-            self.log_or_raise_error("Getting Projects failed")
-            return None
 
-        projects = [TickTickProject(**project_data) for project_data in response]
-        projects_map = {project.id: project for project in projects}
-        self.projects = projects_map
-
-        return projects_map
-
-    def add_project_properties_to_tasks(self, tasks: list[TickTickTask]) -> list[TickTickTask]:
-        if not self.projects:
-            return tasks
-
-        for task in tasks:
-            try:
-                if "inbox" in task.project_id:
-                    task.project_name = "INBOX"
-                    task.show_in_all = True
-                    task.project_muted = False
-                else:
-                    project = self.projects[task.project_id]
-                    task.project_name = project.name
-                    task.show_in_all = project.in_all
-                    task.project_muted = project.muted
-            except Exception as e:
-                self.log.warning(f"Project of task {task.title} not found: {e!s}")
-
-        return tasks
-
-    def log_or_raise_error(self, error_msg: str) -> None:
-        if self.raise_exceptions:
-            raise ValueError(error_msg)
-        else:
-            self.log.error(error_msg)
+def _log_or_raise(error_msg: str, raise_exception: bool) -> None:
+    if raise_exception:
+        raise ValueError(error_msg)
+    log.error(error_msg)
 
 
 if __name__ == "__main__":
-    handler = TicktickTaskHandler(headless=False)
+    auth = get_authenticated_ticktick_headers(headless=False)
     task_ = TickTickTask(
         title="TESTABNSDF", project_id="6864f1ae8f08304bcb05ecba", due_date=get_today_due_date()
     )
-    projects_ = handler.get_all_projects()
-    tasks_ = handler.get_active_tasks()
+    projects_ = get_all_projects(headers=auth)
+    tasks_ = get_active_tasks(headers=auth)
     if not tasks_:
         raise ValueError("No active tasks found. Please create a task first.")
     recurring_tasks = [t for t in tasks_ if t.is_recurring]
     recurr_task = recurring_tasks[0]
     recurr_task.mark_recurring_complete()
 
-    ab_tasks = handler.get_abandoned_tasks()
+    ab_tasks = get_abandoned_tasks(headers=auth)
 
-    resp1 = handler.create_task(task=task_)
+    resp1 = create_task(task=task_, headers=auth)
     task_.status = -1
-    resp2 = handler.update_task(task=task_)
-    resp2 = handler.complete_task(task_id=task_.id, project_id=task_.project_id)
+    resp2 = update_task(task=task_, headers=auth)
+    resp2 = complete_task(task_id=task_.id, project_id=task_.project_id, headers=auth)
