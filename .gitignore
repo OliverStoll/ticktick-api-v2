@@ -10,3 +10,4 @@ _build/
 */ticktick-cookies.json
 __pycache__/
 *.pyc
+dist/
