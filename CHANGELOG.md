@@ -7,6 +7,9 @@
 - **Events**: new `events.py` module with `TicktickEventHandler` for calendar event access
 - **Habits**: updated authentication, now supports `headless`/`undetected` Selenium options and a custom cookies path
 - Fixed: `undetected` Selenium mode was broken by an undefined-name bug (`uc` shadowed by a later local import); also fixed the resulting Python 3.12+/3.13 compatibility issue (`undetected-chromedriver` pulls in `distutils`, removed from the stdlib)
+- Fixed: `TickTickTask.repeat_days` raised `AttributeError` for any unrecognized repeat frequency or malformed interval, since it called `self.log` on the pydantic model, which never had a logger
+- Fixed: an invalid `callable` type hint (should be `typing.Callable`) in `CookiesManager.__init__`
+- Removed leaked GCP-specific logging setup from the shared logger helper (it isn't relevant to this library and wasn't a declared dependency)
 - Added a pytest suite and CI (tests on Python 3.11-3.13, plus lint)
 - Added a `poetry.lock` for reproducible installs
 - Added a PyPI trusted-publishing workflow (triggered on GitHub release)
