@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 from ticktick_v2.utils.logger import create_logger
 
-logged_root_dirs = []
+logged_root_dirs: list[str | None] = []
 
 
 def get_root_dir(dunder_file: str) -> str | None:

@@ -45,3 +45,18 @@ def test_task_camelcase_alias_round_trip():
     dumped = task.model_dump(by_alias=True)
     assert "projectId" in dumped
     assert "project_id" not in dumped
+
+
+def test_repeat_days_for_known_frequencies():
+    weekly = TickTickTask(
+        title="t", project_id="p", repeat_flag="RRULE:FREQ=WEEKLY;INTERVAL=2"
+    )
+    assert weekly.repeat_days == 14
+
+
+def test_repeat_days_returns_none_for_unknown_frequency_without_crashing():
+    # regression test: this used to raise AttributeError because the model
+    # called `self.log`, a logger that only exists on the handler class, not
+    # on the pydantic model itself
+    odd = TickTickTask(title="t", project_id="p", repeat_flag="RRULE:FREQ=HOURLY;INTERVAL=1")
+    assert odd.repeat_days is None

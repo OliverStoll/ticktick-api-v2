@@ -8,14 +8,6 @@ _long_date_format = "%Y-%m-%d %H:%M:%S"
 _short_date_format = "%H:%M:%S"
 
 
-if os.getenv("IS_CLOUD", False):
-    import google.cloud.logging
-    client = google.cloud.logging.Client()
-    client.get_default_handler()
-    client.setup_logging()
-    format_str = "%(levelname)s |  %(name)s   -   %(message)s"
-
-
 class FixedWidthFormatter(logging.Formatter):
     def __init__(self, fmt=None, datefmt=None, name_length=16):
         super().__init__(fmt, datefmt)

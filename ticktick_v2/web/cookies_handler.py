@@ -1,4 +1,5 @@
 import os
+from collections.abc import Callable
 from dataclasses import dataclass
 from time import sleep
 
@@ -48,7 +49,7 @@ class CookiesManager:
     def __init__(self,
                  login_data: LoginData,
                  test_cookies_url: str,
-                 test_cookies_response_fn: callable,
+                 test_cookies_response_fn: Callable,
                  min_num_cookies: int | None = None,
                  cookies_path: str | None = None,
                  headless: bool = False,

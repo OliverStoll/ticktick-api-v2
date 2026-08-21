@@ -11,6 +11,8 @@ from requests import Response
 from ticktick_v2.cookies_login import get_authenticated_ticktick_headers
 from ticktick_v2.utils.logger import create_logger
 
+_model_log = create_logger("TickTick Task Model")
+
 
 def current_utc_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000+0000")
@@ -111,10 +113,10 @@ class TickTickTask(BaseModel):
             case "YEARLY":
                 freq_days = 365
             case _:
-                self.log.warning(f"Unknown frequency: {freq_str}. Returning None.")
+                _model_log.warning(f"Unknown frequency: {freq_str}. Returning None.")
                 return None
         if not value_str.isdigit():
-            self.log.warning(f"Invalid value in repeat flag: {value_str}. Returning None.")
+            _model_log.warning(f"Invalid value in repeat flag: {value_str}. Returning None.")
             return None
         return freq_days * int(value_str)
 
