@@ -8,3 +8,5 @@ build/
 _build/
 */ticktick_com.json
 */ticktick-cookies.json
+__pycache__/
+*.pyc
