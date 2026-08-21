@@ -1,13 +1,13 @@
-import requests
 from datetime import datetime, timedelta
 from typing import Literal
+
+import requests
 from pydantic import BaseModel, ConfigDict, HttpUrl
 
-from ticktick_v2.utils.logger import create_logger
 from ticktick_v2.cookies_login import get_authenticated_ticktick_headers
-from ticktick_v2.web.api_request import post_request
+from ticktick_v2.utils.logger import create_logger
 from ticktick_v2.utils.time_utils import get_datetime_now_utc_millisecond
-
+from ticktick_v2.web.api_request import post_request
 
 # TODO: dataclass for habit metadata
 
@@ -29,7 +29,7 @@ class TickTickHabitEntry(BaseModel):
             date_stamp: int,
             habit_goal: int,
             status: Literal[0, 1, 2, 3] | None = None,
-            value: int | float | None = None,
+            value: float | None = None,
     ) -> "TickTickHabitEntry":
 
         assert status is not None or value is not None, "You need to provide either status or value"
@@ -146,7 +146,7 @@ class TicktickHabitHandler:
             habit_name: str,
             date_stamp: int,
             status: int | None = None,
-            value: int | float | None = None,
+            value: float | None = None,
             raise_exception: bool = False,
          ) -> None:
         """Post a single habit checkin to the TickTick API.

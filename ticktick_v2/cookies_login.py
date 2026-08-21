@@ -1,4 +1,5 @@
 import os
+
 from ticktick_v2.utils.config import ROOT_DIR
 from ticktick_v2.utils.logger import create_logger
 from ticktick_v2.web.cookies_handler import CookiesManager, LoginData, LoginSelectors

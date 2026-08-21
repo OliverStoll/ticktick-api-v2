@@ -1,11 +1,12 @@
 from dataclasses import dataclass
-from typing import Literal
 from time import sleep
-from selenium.webdriver.common.by import By
+from typing import Literal
+
+import undetected_chromedriver as uc
 from selenium import webdriver
+from selenium.webdriver.common.by import By
 
 from ticktick_v2.utils.logger import create_logger
-
 
 
 @dataclass
@@ -68,12 +69,13 @@ class SeleniumHandler:
             kwargs['options'] = options
 
         if self.undetected:
-            import undetected_chromedriver as uc
             return uc.Chrome(**kwargs)
         else:
             return webdriver.Chrome(**kwargs)
 
-    def run_actions(self, actions: list[DriverAction], driver: webdriver.Chrome | None = None) -> dict[str, str | list[str] | None]:
+    def run_actions(
+        self, actions: list[DriverAction], driver: webdriver.Chrome | None = None
+    ) -> dict[str, str | list[str] | None]:
         _driver = driver if driver is not None else self.get_driver()
         results = {}
         for action in actions:
@@ -115,7 +117,8 @@ class SeleniumHandler:
                 result = driver.find_element(By.CSS_SELECTOR, action.identifier).get_attribute("class")
                 self.log_msg(f"Storing class: {result}", level='debug')
             case "get_classes":
-                result = [element.get_attribute("class") for element in driver.find_elements(By.CSS_SELECTOR, action.identifier)]
+                elements = driver.find_elements(By.CSS_SELECTOR, action.identifier)
+                result = [element.get_attribute("class") for element in elements]
                 self.log_msg(f"Storing classes: {result}", level='debug')
             case _:
                 self.log_msg(f"Invalid action: {action.action}", level='error')

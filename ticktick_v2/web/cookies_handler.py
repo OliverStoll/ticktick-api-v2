@@ -1,9 +1,8 @@
 import os
+from dataclasses import dataclass
+from time import sleep
 
 import requests
-from time import sleep
-from dataclasses import dataclass
-from selenium import webdriver
 from selenium.webdriver.common.by import By
 
 from ticktick_v2.utils.logger import create_logger
@@ -41,8 +40,8 @@ class CookiesManager:
         "Sec-Fetch-Dest": "empty",
         "Sec-Fetch-Mode": "cors",
         "Sec-Fetch-Site": "same-site",
-        "User-Agent": "Mozilla/4.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-        "X-Device": '{"platform":"web","os":"Windows 9","device":"Chrome 121.0.0.0","name":"","version":5070,"id":"64f085936fc6ff0ae4a815dc","channel":"website","campaign":"","websocket":"65d2d554073cb37cda076c69"}',
+        "User-Agent": "Mozilla/4.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",  # noqa: E501
+        "X-Device": '{"platform":"web","os":"Windows 9","device":"Chrome 121.0.0.0","name":"","version":5070,"id":"64f085936fc6ff0ae4a815dc","channel":"website","campaign":"","websocket":"65d2d554073cb37cda076c69"}',  # noqa: E501
         "X-Tz": "Europe/Berlin",
     }
 
@@ -73,7 +72,9 @@ class CookiesManager:
         self.log = create_logger("Cookies Manager")
         self.cookies_path = cookies_path
         self._add_origin_referer_headers()
-        self.selenium_handler = SeleniumHandler(headless=headless, undetected=undetected, download_driver=download_driver)
+        self.selenium_handler = SeleniumHandler(
+            headless=headless, undetected=undetected, download_driver=download_driver
+        )
 
     def _add_origin_referer_headers(self):
         website_url = self.login_data.sign_in_url.split("/")[2]
@@ -106,7 +107,7 @@ class CookiesManager:
         if not self.cookies_path:
             return None
         try:
-            with open(self.cookies_path, "r") as file:
+            with open(self.cookies_path) as file:
                 return file.read().strip()
         except Exception as e:
             self.log.error(f"Error loading cookies from file: {e}")
@@ -155,8 +156,8 @@ class CookiesManager:
 
 
 if __name__ == "__main__":
+
     from dotenv import load_dotenv
-    from os import getenv
 
     def test_cookies_response_fn(data: dict) -> bool:
         return "errorCode" not in data

@@ -1,15 +1,15 @@
 import json
 import os
 import uuid
-
-import requests
-from datetime import datetime, timezone, tzinfo
+from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
-import pytz
-from pydantic import BaseModel, field_validator, model_validator, ConfigDict
 
-from ticktick_v2.utils.logger import create_logger
+import pytz
+import requests
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
+
 from ticktick_v2.cookies_login import get_authenticated_ticktick_headers
+from ticktick_v2.utils.logger import create_logger
 from ticktick_v2.utils.time_utils import get_timestamp_from_offset
 
 
@@ -22,7 +22,7 @@ class TickTickFocusTime(BaseModel):
     pause_duration: int
     total_duration: int | None = None
 
-    @field_validator("start_time", "end_time", mode="before")  # noqa
+    @field_validator("start_time", "end_time", mode="before")
     @classmethod
     def _parse_datetime(cls, value):
         if isinstance(value, str):
@@ -108,7 +108,7 @@ class TicktickFocusHandler:
             if 'current' not in response_data or response_data['current']['status'] > 1:  # 0 is running, 1 paused
                 return None
             return response_data['current']
-        except Exception as e:
+        except Exception:
             self.log.warning("Issue converting start time of running focus")
             return None
 
@@ -127,7 +127,7 @@ class TicktickFocusHandler:
             diff_minutes = (current - start_time_here).total_seconds() / 60
             return diff_minutes
         except Exception as e:
-            self.log.debug(f"Error getting active focus time {str(e)}")
+            self.log.debug(f"Error getting active focus time {e!s}")
             return 0
 
     def calculate_pause_time(self, focus_data: dict):

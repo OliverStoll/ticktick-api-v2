@@ -1,5 +1,6 @@
-import requests
 import json
+
+import requests
 
 from ticktick_v2.utils.logger import create_logger
 
@@ -19,7 +20,7 @@ def get_request(url, headers=None, catch_exception=False) -> dict | None:
         if catch_exception:
             return None
         else:
-            raise Exception(f"Error sending POST request to {url}: {e}")
+            raise RuntimeError(f"Error sending POST request to {url}: {e}") from e
 
 
 def post_request(url, payload, headers=None, raise_exception=False) -> dict | None:
@@ -33,6 +34,6 @@ def post_request(url, payload, headers=None, raise_exception=False) -> dict | No
         return response.json()
     except Exception as e:
         if raise_exception:
-            raise Exception(f"Error sending POST request to {url}: {e}")
+            raise RuntimeError(f"Error sending POST request to {url}: {e}") from e
         else:
             return None

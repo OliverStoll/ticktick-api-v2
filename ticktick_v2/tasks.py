@@ -1,12 +1,12 @@
 import json
-from datetime import datetime, timezone, timedelta
-from zoneinfo import ZoneInfo
 import secrets
 import warnings
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 import requests
-from requests import Response
 from pydantic import BaseModel, ConfigDict, Field
+from requests import Response
 
 from ticktick_v2.cookies_login import get_authenticated_ticktick_headers
 from ticktick_v2.utils.logger import create_logger
@@ -266,7 +266,9 @@ class TicktickTaskHandler:
         """
 
         warnings.warn(
-            "get_all_tasks is deprecated. Use get_active_tasks instead.", DeprecationWarning
+            "get_all_tasks is deprecated. Use get_active_tasks instead.",
+            DeprecationWarning,
+            stacklevel=2,
         )
 
         response = requests.get(url=self.url_get_tasks, headers=self.headers).json()
@@ -340,7 +342,7 @@ class TicktickTaskHandler:
                     task.show_in_all = project.in_all
                     task.project_muted = project.muted
             except Exception as e:
-                self.log.warning(f"Project of task {task.title} not found: {str(e)}")
+                self.log.warning(f"Project of task {task.title} not found: {e!s}")
 
         return tasks
 

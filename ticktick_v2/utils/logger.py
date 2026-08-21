@@ -1,8 +1,7 @@
 import logging
-import sys
 import os
+import sys
 from logging.handlers import RotatingFileHandler
-
 
 format_str = "[%(asctime)s]  %(levelname)s | %(name)s   -   %(message)s"
 _long_date_format = "%Y-%m-%d %H:%M:%S"

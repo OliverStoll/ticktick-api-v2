@@ -1,6 +1,7 @@
-from dotenv import load_dotenv
 import os
 from os import getenv as secret  # noqa: F401
+
+from dotenv import load_dotenv
 
 from ticktick_v2.utils.logger import create_logger
 
@@ -34,11 +35,11 @@ def get_root_dir(dunder_file: str) -> str | None:
         elif root_dir and root_dir[-1] == '\\':
             root_dir = root_dir[:-1]
         if os.getenv('DONT_PRINT_ROOT_DIR'):
-            return root_dir
+            return root_dir  # noqa: B012
         logger.debug(f"{'ROOT_DIR' if dunder_file == __file__ else 'get_root_dir'}: {root_dir}"
                      f"  -  {os.listdir(root_dir) if root_dir not in logged_root_dirs else ''}")
         logged_root_dirs.append(root_dir)
-        return root_dir
+        return root_dir  # noqa: B012
 
 
 
