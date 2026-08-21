@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from time import sleep
 from typing import Literal
 
-import undetected_chromedriver as uc
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 
@@ -51,6 +50,12 @@ class SeleniumHandler:
 
     def get_driver(self):
         kwargs = {}
+        if self.undetected:
+            # Imported lazily: undetected-chromedriver pulls in distutils,
+            # removed from the stdlib in Python 3.12+, and this class is
+            # imported (transitively) even when undetected mode is unused.
+            import undetected_chromedriver as uc
+
         if self.download_driver and not self.undetected:
             from selenium.webdriver.chrome.service import Service
             from webdriver_manager.chrome import ChromeDriverManager
