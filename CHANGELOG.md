@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.0
+
+Same content as 0.26.0, versioned as the first stable release: the plain-function API (tasks, habits, focus, events), full CI/test coverage, and the bug fixes below are the baseline going forward. Breaking changes from here get a major version bump.
+
 ## 0.26.0
 
 - **Breaking**: replaced the `TicktickTaskHandler`/`TicktickHabitHandler`/`TicktickFocusHandler`/`TicktickEventHandler` classes with plain module-level functions (`create_task`, `post_checkin`, `add_focus_record`, `get_all_events`, etc.), each taking an optional `headers` argument instead of requiring a constructed handler object. See the README for the new usage.
