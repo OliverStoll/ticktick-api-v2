@@ -1,29 +1,26 @@
 import requests
 from datetime import datetime, timedelta
 from typing import Literal
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, HttpUrl
 
 from ticktick_v2.utils.logger import create_logger
-from ticktick_v2.utils.time_utils import get_datetime_now_utc_millisecond
 from ticktick_v2.cookies_login import get_authenticated_ticktick_headers
 from ticktick_v2.web.api_request import post_request
+from ticktick_v2.utils.time_utils import get_datetime_now_utc_millisecond
 
 
 # TODO: dataclass for habit metadata
 
 
 class TickTickHabitEntry(BaseModel):
-    habitId: str
-    checkinStamp: int
+    habit_id: str
+    checkin_stamp: int
     goal: float | int
     value: float | int
-    status: Literal[0, 1, 2]
-    id: str | None
-    checkinTime: str | None = None
-    opTime: str | None = None
-
-    class Config:
-        extra = "allow"
+    status: Literal[0, 1, 2, 3]
+    id: str | None = None
+    checkin_time: str | None = None
+    op_time: str | None = None
 
     @classmethod
     def init(
@@ -31,11 +28,10 @@ class TickTickHabitEntry(BaseModel):
             habit_id: str,
             date_stamp: int,
             habit_goal: int,
-            status: Literal[0, 1, 2] | None = None,
+            status: Literal[0, 1, 2, 3] | None = None,
             value: int | float | None = None,
     ) -> "TickTickHabitEntry":
 
-        assert not (status and value), "You can only provide status or value, not both"
         assert status is not None or value is not None, "You need to provide either status or value"
 
         if value is None:
@@ -45,14 +41,29 @@ class TickTickHabitEntry(BaseModel):
 
         now = get_datetime_now_utc_millisecond()
         return cls(
-            checkinStamp=date_stamp,
-            checkinTime=now,
+            checkin_stamp=date_stamp,
+            checkin_time=now,
             goal=habit_goal,
-            habitId=habit_id,
-            opTime=now,
+            habit_id=habit_id,
+            op_time=now,
             status=status,
             value=value,
         )
+
+    @staticmethod
+    def to_camel(field_name: str) -> str:
+        """
+        Convert a snake_case field name into camelCase.
+        E.g. 'checkin_stamp' -> 'checkinStamp'
+        """
+        parts = field_name.split('_')
+        return parts[0] + ''.join(word.capitalize() for word in parts[1:])
+
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        extra="allow"
+    )
 
 
 
@@ -66,15 +77,31 @@ class TicktickHabitHandler:
     - Checkin: A checkin is a single entry of a habit, with a status and a value.
     """
 
+    log = create_logger("Ticktick Habits")
     status_codes = {0: "Not completed", 1: "Failed", 2: "Completed"}
-    url_habits = "https://api.ticktick.com/api/v2/habits"
-    url_batch_checkin = "https://api.ticktick.com/api/v2/habitCheckins/batch"
-    url_query_checkin = "https://api.ticktick.com/api/v2/habitCheckins/query"
+    url_habits = HttpUrl("https://api.ticktick.com/api/v2/habits")
+    url_batch_checkin = HttpUrl("https://api.ticktick.com/api/v2/habitCheckins/batch")
+    url_query_checkin = HttpUrl("https://api.ticktick.com/api/v2/habitCheckins/query")
 
 
-    def __init__(self, always_raise_exceptions: bool = False):
-        self.log = create_logger("Ticktick Habits")
-        self.headers = get_authenticated_ticktick_headers()
+    def __init__(
+            self,
+            cookies_path: str | None = None,
+            always_raise_exceptions: bool = False,
+            headless: bool = True,
+            undetected: bool = False,
+            download_driver: bool = False,
+            username_env: str = 'TICKTICK_EMAIL',
+            password_env: str = 'TICKTICK_PASSWORD',
+    ):
+        self.headers = get_authenticated_ticktick_headers(
+            cookies_path=cookies_path,
+            username_env=username_env,
+            password_env=password_env,
+            headless=headless,
+            undetected=undetected,
+            download_driver=download_driver,
+        )
         self.habits, self.habit_ids = self._get_all_habits_metadata()
         self.raise_exceptions = always_raise_exceptions
 
@@ -99,7 +126,7 @@ class TicktickHabitHandler:
             self,
             habit_name: str,
             date_stamp: int,
-            status: int | None = None,
+            status: Literal[0, 1, 2] | None = None,
             value: int | None = None,
     ) -> TickTickHabitEntry:
         """Collect all data needed for a single habit checkin."""
@@ -119,13 +146,13 @@ class TicktickHabitHandler:
             habit_name: str,
             date_stamp: int,
             status: int | None = None,
-            value: int | None = None,
+            value: int | float | None = None,
             raise_exception: bool = False,
          ) -> None:
         """Post a single habit checkin to the TickTick API.
 
         Args:
-            habit_name: Name of the habit to check-in
+            habit_name: Name of the habit to check in
             date_stamp: Date of the check-in, in the format YYYYMMDD
             status: Status of the check-in. 0: Not completed, 1: Failed, 2: Completed
             value: The value amount to check in. for habits who require multiple units
@@ -133,22 +160,20 @@ class TicktickHabitHandler:
         """
 
         checkin_entry = self._init_habit_entry(habit_name, date_stamp, status, value)
-        self.log.info(f"Checking {habit_name} on {date_stamp} as {status}: {value}/{checkin_entry.goal}")
+        self.log.debug(f"Checking {habit_name} on {date_stamp} as {status}: {value}/{checkin_entry.goal}")
 
         # create payload depending on if a checkin for that day already exists
-        existing_checkin_entry = self.get_checkin(checkin_entry.habitId, date_stamp)
+        existing_checkin_entry = self.get_checkin(checkin_entry.habit_id, date_stamp)
         payload: dict[str, list[dict[str, str | int]]] = {"add": [], "update": [], "delete": []}
 
         if existing_checkin_entry:
             checkin_entry.id = existing_checkin_entry.id
-            payload["update"].append(checkin_entry.model_dump())
+            payload["update"].append(checkin_entry.model_dump(by_alias=True))
         else:
-            payload["add"].append(checkin_entry.model_dump())
+            payload["add"].append(checkin_entry.model_dump(by_alias=True))
 
-        response = post_request(url="batch_checkin", payload=payload, headers=self.headers)
-        if response:
-            self.log.info(f"Checkin for {habit_name} successful with response: {response}")
-        elif raise_exception or self.raise_exceptions:
+        response = post_request(url=self.url_batch_checkin, payload=payload, headers=self.headers)
+        if not response and (raise_exception or self.raise_exceptions):
             raise ValueError(f"Error posting Habit Checkin: {response}")
 
     def get_checkin(
@@ -157,7 +182,9 @@ class TicktickHabitHandler:
             date_stamp: int,
             raise_exception: bool = False,
     ) -> TickTickHabitEntry | None:
-        """Retrieve a single checkin entry for a habit on a specific date, or None if not found"""
+        """
+        Retrieve a single checkin entry for a habit on a specific date, or None if not found
+        """
 
         date = datetime.strptime(str(date_stamp), "%Y%m%d")
         after_stamp = (date - timedelta(days=1)).strftime("%Y%m%d")

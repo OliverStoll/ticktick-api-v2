@@ -1,18 +1,16 @@
 # 📦 TickTick-Unofficial-Api
 
-TickTick-Unofficial-Api is a Python wrapper for the unofficial TickTick API (v2). 
-It provides access to task, focus, and habit data, and currently supports reading and writing habit entries. 
+TickTick-Unofficial-Api is a Python wrapper for the unofficial TickTick API (v2).
+It provides full read and write access to task, focus, habit, and calendar event data.
 Authentication is handled via cookies retrieved either through Selenium or manually extracted browser sessions.
 
 ## ✨ Features
 
+- Retrieve, create, update, and complete TickTick tasks
+- Retrieve TickTick calendar events
 - Retrieve and add TickTick habit entries
-- Retrieve TickTick focus time data
-- Retrieve TickTick tasks (also supported by the official v1 API)
-
-#### Planned features:
-- Add support for writing focus sessions
-- Add support for creating and updating tasks
+- Retrieve TickTick focus time data, and add historic focus records
+- Retrieve the currently active (in progress) focus session
 
 ## 🗂️ Project Structure
 
@@ -22,9 +20,10 @@ src/
     ├── utils/                 utility functions  
     ├── web/                   web-related functionality (e.g., Selenium login)  
     ├── cookies_login.py       handles cookie retrieval via Selenium  
-    ├── focus.py               focus session access  
+    ├── events.py              calendar event access  
+    ├── focus.py               focus session access and creation  
     ├── habits.py              habit access and writing  
-    └── tasks.py               task access
+    └── tasks.py               task access, creation, and updates
 ```
 
 ## 📥 Installation
@@ -40,6 +39,7 @@ You can use the module by importing `ticktick_v2`:
 from ticktick_v2.habits import TicktickHabitHandler, TickTickHabitEntry 
 from ticktick_v2.focus import TicktickFocusHandler, TickTickFocusTime
 from ticktick_v2.tasks import TicktickTaskHandler, TickTickTask
+from ticktick_v2.events import TicktickEventHandler, TicktickEvent
 ```
 
 All return values use pydantic BaseModel for data validation. 
