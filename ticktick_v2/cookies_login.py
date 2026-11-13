@@ -5,21 +5,18 @@ from ticktick_v2.utils.logger import create_logger
 from ticktick_v2.web.cookies_handler import CookiesManager, LoginData, LoginSelectors
 
 
-def get_authenticated_ticktick_headers(
+def build_cookies_manager(
     cookies_path: str | None = None,
     username_env: str = "TICKTICK_EMAIL",
     password_env: str = "TICKTICK_PASSWORD",
     headless: bool = False,
     undetected: bool = False,
     download_driver: bool = False,
-):
-    log = create_logger("TickTick Cookies Helper")
-
-    if os.getenv(username_env) is None or os.getenv(password_env) is None:
-        log.error(
-            f"Either username or password environment variables {username_env} | {password_env} is None"
-        )
-
+) -> CookiesManager:
+    """Build a `CookiesManager` with the TickTick login page and cookie test
+    URL already wired up. Split out of `get_authenticated_ticktick_headers` so
+    callers that want to inspect a cached cookie file without triggering a
+    Selenium login (e.g. the MCP server) can reuse the same configuration."""
     cookies_manager = CookiesManager(
         login_data=LoginData(
             username_env=username_env,
@@ -44,6 +41,33 @@ def get_authenticated_ticktick_headers(
         cookies_manager.cookies_path = f"{ROOT_DIR}/.ticktick-cookies.json"
     else:
         cookies_manager.cookies_path = "../../.ticktick-cookies.json"
+
+    return cookies_manager
+
+
+def get_authenticated_ticktick_headers(
+    cookies_path: str | None = None,
+    username_env: str = "TICKTICK_EMAIL",
+    password_env: str = "TICKTICK_PASSWORD",
+    headless: bool = False,
+    undetected: bool = False,
+    download_driver: bool = False,
+):
+    log = create_logger("TickTick Cookies Helper")
+
+    if os.getenv(username_env) is None or os.getenv(password_env) is None:
+        log.error(
+            f"Either username or password environment variables {username_env} | {password_env} is None"
+        )
+
+    cookies_manager = build_cookies_manager(
+        cookies_path=cookies_path,
+        username_env=username_env,
+        password_env=password_env,
+        headless=headless,
+        undetected=undetected,
+        download_driver=download_driver,
+    )
 
     headers = cookies_manager.get_headers_with_cookies()
 

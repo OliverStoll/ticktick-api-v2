@@ -109,6 +109,73 @@ events = get_all_events(headers=auth)
 
 All return values are `pydantic` `BaseModel`s. Convert to a plain dict with `.model_dump()`, or `.model_dump(by_alias=True)` for TickTick's native camelCase field names.
 
+## 🤖 MCP server
+
+The same client, exposed as an MCP server so Claude Desktop, Claude Code, Cursor,
+VS Code and other MCP clients can read and write your TickTick data directly.
+
+```
+pip install "ticktick-py-v2[mcp]"
+```
+
+```bash
+claude mcp add ticktick -- ticktick-mcp
+
+# credentials for the headless login, if you want it to log itself in
+claude mcp add ticktick --env TICKTICK_EMAIL=you@example.com --env TICKTICK_PASSWORD=... \
+  --env TICKTICK_AUTO_LOGIN=true -- ticktick-mcp
+```
+
+For clients configured through JSON:
+
+```json
+{
+  "mcpServers": {
+    "ticktick": {
+      "command": "ticktick-mcp",
+      "env": {
+        "TICKTICK_COOKIES_FILE": "/home/you/.ticktick-cookies.json",
+        "TICKTICK_TOOL_PROFILE": "essential"
+      }
+    }
+  }
+}
+```
+
+VS Code uses the same entry under a `servers` key with `"type": "stdio"`. Zed
+uses `context_servers`. `python -m ticktick_v2.mcp` does the same as
+`ticktick-mcp` if the console script is not on your `PATH`.
+
+### Configuration
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `TICKTICK_EMAIL`, `TICKTICK_PASSWORD` | unset | Login credentials; only read from the environment |
+| `TICKTICK_COOKIES_FILE` | unset | Path to exported cookies, used instead of logging in |
+| `TICKTICK_COOKIE_STORE` | `$XDG_STATE_HOME/ticktick-mcp` | Where the session is cached after a login |
+| `TICKTICK_AUTO_LOGIN` | `false` | Set exactly `true` to allow the headless Selenium login |
+| `TICKTICK_HEADLESS` | `true` | Set `false` to watch the login browser |
+| `TICKTICK_TIMEZONE` | system local | Timezone for reading and writing dates |
+| `TICKTICK_TOOL_PROFILE` | `full` | `full` or `essential`; changes the advertised tool set |
+| `TICKTICK_MCP_TRANSPORT` | `stdio` | `stdio` or `http` |
+| `TICKTICK_MCP_HOST`, `TICKTICK_MCP_PORT` | `127.0.0.1`, `8765` | Bind address for the HTTP transport |
+| `TICKTICK_MCP_TOKEN` | unset | Bearer token required by the HTTP transport |
+| `TICKTICK_MCP_USERNAME`, `TICKTICK_MCP_PASSWORD` | unset | Basic-auth pair for the HTTP transport |
+
+The server never logs in on its own unless `TICKTICK_AUTO_LOGIN=true`: Selenium
+is a heavy start for a process an editor launches, so the default is to use the
+cookies file if it is valid and otherwise report what is missing. `get_login_status`
+shows which of the two applies, including the cookie file's age and, with
+`check_network=true`, whether TickTick still accepts it.
+
+The `essential` profile keeps the reads plus the additive writes (`create_task`,
+`complete_task`, `check_in_habit`) and drops `update_task`, `set_task_status`,
+`delete_task` and `add_focus_record`. Like any tool profile it is a discovery
+choice, not a security boundary: the tools it does advertise can still write.
+
+The HTTP transport refuses to bind off loopback unless a token or an
+username/password pair is configured.
+
 ## 🗂️ Project structure
 
 ```

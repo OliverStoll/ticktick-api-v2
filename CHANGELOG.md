@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- **MCP server**: new `ticktick_v2/mcp` module plus a `ticktick-mcp` console script (optional `[mcp]` extra) exposing tasks, projects, habits, check-ins, focus sessions and calendar events to any MCP client over stdio, with an HTTP transport available behind a token or basic auth. Configuration is entirely environment-driven; see the README's MCP section. `TICKTICK_TOOL_PROFILE` selects between the `full` and `essential` tool sets.
+- **Tasks**: add `delete_task`.
+- **Auth**: split `build_cookies_manager` out of `get_authenticated_ticktick_headers` so callers can validate a cached cookie file without starting Selenium.
+- Fixed: the server redirects the library's loggers to stderr, since a log line on stdout corrupts the stdio JSON-RPC stream.
+- Lint: use `datetime.UTC` so `ruff check .` is clean on current ruff.
+
 ## 1.0.0
 
 Same content as 0.26.0, versioned as the first stable release: the plain-function API (tasks, habits, focus, events), full CI/test coverage, and the bug fixes below are the baseline going forward. Breaking changes from here get a major version bump.
