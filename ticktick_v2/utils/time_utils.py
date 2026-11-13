@@ -1,8 +1,8 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 
 def get_datetime_now_utc_millisecond() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S") + ".000+0000"
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S") + ".000+0000"
 
 
 def get_timestamp_from_offset(days_offset: int) -> int:
