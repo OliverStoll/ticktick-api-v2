@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from ticktick_v2.tasks import (
     TickTickProject,
@@ -31,7 +31,7 @@ def test_get_today_due_date_is_today():
 
 
 def test_format_datetime_custom_converts_to_utc():
-    dt = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+    dt = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
     assert format_datetime_custom(dt) == "2026-01-01T12:00:00.000+0000"
 
 

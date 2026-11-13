@@ -23,6 +23,13 @@ selenium = "^4.32.0"
 undetected-chromedriver = "^3.5.5"
 webdriver-manager = "^4.0.2"
 pytz = "^2025.2"
+mcp = { version = ">=1.9,<2", optional = true }
+
+[tool.poetry.extras]
+mcp = ["mcp"]
+
+[tool.poetry.scripts]
+ticktick-mcp = "ticktick_v2.mcp.server:main"
 
 
 

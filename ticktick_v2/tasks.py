@@ -1,7 +1,7 @@
 import json
 import secrets
 import warnings
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import requests
@@ -19,7 +19,7 @@ _URL_ABANDONED_TASKS = "https://api.ticktick.com/api/v2/project/all/closed?statu
 
 
 def current_utc_iso() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000+0000")
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.000+0000")
 
 
 def get_today_due_date() -> str:
@@ -27,7 +27,7 @@ def get_today_due_date() -> str:
 
 
 def format_datetime_custom(dt: datetime) -> str:
-    return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000+0000")
+    return dt.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%S.000+0000")
 
 
 def generate_id() -> str:
@@ -51,8 +51,8 @@ class TickTickTask(BaseModel):
     progress: int = 0
     deleted: int = 0
     # dates
-    created_time: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    modified_time: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_time: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    modified_time: datetime = Field(default_factory=lambda: datetime.now(UTC))
     start_date: datetime | None = None
     due_date: datetime | None = None
     # recurrence
@@ -225,6 +225,13 @@ def update_task(task: TickTickTask, headers: dict | None = None) -> requests.Res
 
     task_data = task.model_dump(mode="json", by_alias=True, exclude_unset=False)
     payload = {"update": [task_data]}
+    return requests.post(_URL_CREATE_TASK, data=json.dumps(payload), headers=_headers(headers))
+
+
+def delete_task(task_id: str, project_id: str, headers: dict | None = None) -> requests.Response:
+    """Delete a task. Mirrors the `delete` branch of the batch task endpoint the
+    web app uses; TickTick keys deleted tasks by `taskId` rather than `id`."""
+    payload = {"delete": [{"taskId": task_id, "projectId": project_id}]}
     return requests.post(_URL_CREATE_TASK, data=json.dumps(payload), headers=_headers(headers))
 
 

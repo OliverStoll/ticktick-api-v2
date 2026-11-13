@@ -1,7 +1,7 @@
 import json
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
 import pytz
@@ -137,8 +137,8 @@ def add_focus_record(
     chunking into the configured pomodoro length: a single record with
     an arbitrary duration is accepted."""
     record_id = uuid.uuid4().hex[:24]
-    start_utc = start.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000+0000")
-    end_utc = end.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000+0000")
+    start_utc = start.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%S.000+0000")
+    end_utc = end.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%S.000+0000")
     payload = {
         "add": [{
             "id": record_id,
